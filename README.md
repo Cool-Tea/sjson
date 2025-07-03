@@ -101,15 +101,17 @@ int jarray_add(jnode_t* jnode, jnode_t* value)                // Add element to 
 int jarray_insert(jnode_t* jnode, int index, jnode_t* value)  // Insert at index
 int jarray_pop(jnode_t* jnode)                                // Remove last element
 int jarray_remove(jnode_t* jnode, int index)                  // Remove element at index
+void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*));     // Iterate through array
 ```
 
 #### Object Operations
 
 ```c
-int jobject_size(jnode_t* jnode)                                  // Get object size
-int jobject_has(jnode_t* jnode, const char* key)                  // Check if key exists
-jnode_t* jobject_get(jnode_t* jnode, const char* key)             // Get value by key
-int jobject_put(jnode_t* jnode, const char* key, jnode_t* value)  // Set key-value pair
+int jobject_size(jnode_t* jnode)                                         // Get object size
+int jobject_has(jnode_t* jnode, const char* key)                         // Check if key exists
+jnode_t* jobject_get(jnode_t* jnode, const char* key)                    // Get value by key
+int jobject_put(jnode_t* jnode, const char* key, jnode_t* value)         // Set key-value pair
+void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*));  // Iterate through key-value pairs
 ```
 
 ### Type Checking Macros

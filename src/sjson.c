@@ -482,6 +482,14 @@ int jarray_remove(jnode_t* jnode, int index) {
   }
 }
 
+void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
+  jarray_t* jarr = jas_array(jnode);
+  jvector_foreach(i, jarr->array) {
+    jnode_t* item = *jvector_get(jarr->array, i);
+    f(item);
+  }
+}
+
 /* ==============================
  *      5. OBJECT OPERATION
  * ============================== */
@@ -595,6 +603,16 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
   return changed;
 }
 
+void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
+  jobject_t* jobj = jas_object(jnode);
+  for (int i = 0; i < jht_capacity(jobj->hashmap); i++) {
+    jkv_t* head = jht_get(jobj->hashmap, i);
+    for (jkv_t* it = head->next; it; it = it->next) {
+      f(it->key, it->value);
+    }
+  }
+}
+
 /* ==============================
  *          6. FROM_STRING
  * ============================== */
@@ -693,9 +711,10 @@ static int jlex_number(jlexer_t* lexer, tv* tokens) {
 }
 
 static int jlex_string(jlexer_t* lexer, tv* tokens) {
-  jlexer_to_token(lexer, tk, JTK_STRING, 1);
   if (jlexer_peek(lexer) != '\"') return 0;
+  jlexer_to_token(lexer, tk, JTK_STRING, 0);
   jlexer_advance(lexer);
+  tk.len++;
   tk.as.string = jlexer_currptr(lexer);
   while (!jlexer_is_end(lexer) && jlexer_peek(lexer) != '\"') {
     tk.len++;
@@ -902,7 +921,10 @@ static jnode_t* jparse(jparser_t* parser) {
     case JTK_TRUE: return jbool_new(1);
     case JTK_FALSE: return jbool_new(0);
     case JTK_NUMBER: return jnumber_new(tk->as.number);
-    case JTK_STRING: return jstring_new(tk->len - 2, tk->as.string);
+    case JTK_STRING: {
+      if (tk->len <= 2) return jstring_new(0, "");
+      else return jstring_new(tk->len - 2, tk->as.string);
+    }
     case JTK_EOF: return jparse_end_return;  // End of parsing
     case '[': return jparse_array(parser);
     case '{': return jparse_object(parser);
