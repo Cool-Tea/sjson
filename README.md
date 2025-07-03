@@ -1,6 +1,6 @@
 # sjson
 
-A simple JSON library written in C, designed to be lighter than cJSON while providing a straightforward API for JSON manipulation.
+A simple and light weight JSON library written in C, designed to provide a straightforward API for JSON manipulation.
 
 ## Features
 
@@ -78,6 +78,40 @@ int main() {
 #### Memory Management
 - `void jdelete(jnode_t* jnode)` - Free JSON node and all children
 
+#### String Operations
+
+```c
+int jstring_len(jnode_t* jnode)                              // Get string length
+char jstring_get(jnode_t* jnode, int index)                  // Get character at index
+const char* jstring_content(jnode_t* jnode)                  // Get string content
+int jstring_add(jnode_t* jnode, char c)                      // Add character to end
+int jstring_insert(jnode_t* jnode, int index, char c)        // Insert character at index
+int jstring_concat(jnode_t* jnode, const char* string)       // Concatenate string
+int jstring_pop(jnode_t* jnode)                              // Remove last character
+int jstring_remove(jnode_t* jnode, int index)                // Remove character at index
+int jstring_truncate(jnode_t* jnode, int len)                // Retain string of length `len`
+```
+
+#### Array Operations
+
+```c
+int jarray_size(jnode_t* jnode)                               // Get array size
+jnode_t* jarray_get(jnode_t* jnode, int index)                // Get element at index
+int jarray_add(jnode_t* jnode, jnode_t* value)                // Add element to end
+int jarray_insert(jnode_t* jnode, int index, jnode_t* value)  // Insert at index
+int jarray_pop(jnode_t* jnode)                                // Remove last element
+int jarray_remove(jnode_t* jnode, int index)                  // Remove element at index
+```
+
+#### Object Operations
+
+```c
+int jobject_size(jnode_t* jnode)                                  // Get object size
+int jobject_has(jnode_t* jnode, const char* key)                  // Check if key exists
+jnode_t* jobject_get(jnode_t* jnode, const char* key)             // Get value by key
+int jobject_put(jnode_t* jnode, const char* key, jnode_t* value)  // Set key-value pair
+```
+
 ### Type Checking Macros
 
 ```c
@@ -99,40 +133,6 @@ jas_number(node)    // Cast to jnumber_t*
 jas_string(node)    // Cast to jstring_t*
 jas_array(node)     // Cast to jarray_t*
 jas_object(node)    // Cast to jobject_t*
-```
-
-### String Operations
-
-```c
-int jstring_len(jnode_t* jnode)                              // Get string length
-char jstring_get(jnode_t* jnode, int index)                  // Get character at index
-const char* jstring_content(jnode_t* jnode)                  // Get string content
-int jstring_add(jnode_t* jnode, char c)                      // Add character to end
-int jstring_insert(jnode_t* jnode, int index, char c)        // Insert character at index
-int jstring_concat(jnode_t* jnode, const char* string)       // Concatenate string
-int jstring_pop(jnode_t* jnode)                              // Remove last character
-int jstring_remove(jnode_t* jnode, int index)                // Remove character at index
-int jstring_truncate(jnode_t* jnode, int len)                // Retain string of length `len`
-```
-
-### Array Operations
-
-```c
-int jarray_size(jnode_t* jnode)                               // Get array size
-jnode_t* jarray_get(jnode_t* jnode, int index)                // Get element at index
-int jarray_add(jnode_t* jnode, jnode_t* value)                // Add element to end
-int jarray_insert(jnode_t* jnode, int index, jnode_t* value)  // Insert at index
-int jarray_pop(jnode_t* jnode)                                // Remove last element
-int jarray_remove(jnode_t* jnode, int index)                  // Remove element at index
-```
-
-### Object Operations
-
-```c
-int jobject_size(jnode_t* jnode)                                  // Get object size
-int jobject_has(jnode_t* jnode, const char* key)                  // Check if key exists
-jnode_t* jobject_get(jnode_t* jnode, const char* key)             // Get value by key
-int jobject_put(jnode_t* jnode, const char* key, jnode_t* value)  // Set key-value pair
 ```
 
 ## Working with Different Types
@@ -172,7 +172,7 @@ jnode_t* root = jobject_new();
 jobject_put(root, "person", person);
 ```
 
-### String Manipulation Examples
+### String Manipulation
 
 ```c
 // Create a string and manipulate it
