@@ -379,7 +379,63 @@ void jdelete(jnode_t* jnode) {
 }
 
 /* ==============================
- *       3. ARRAY OPERATION
+ *      3. STRING OPERATION
+ * ============================== */
+
+int jstring_len(jnode_t* jnode) {
+  jstring_t* jstr = jas_string(jnode);
+  return jvector_len(jstr->string);
+}
+
+char jstring_get(jnode_t* jnode, int index) {
+  jstring_t* jstr = jas_string(jnode);
+  return *jvector_get(jstr->string, index);
+}
+
+const char* jstring_content(jnode_t* jnode) {
+  jstring_t* jstr = jas_string(jnode);
+  return jvector_data(jstr->string);
+}
+
+int jstring_add(jnode_t* jnode, char c) {
+  jstring_t* jstr = jas_string(jnode);
+  jvector_concat(char, &jstr->string, &c, 1);
+  return 1;
+}
+
+int jstring_insert(jnode_t* jnode, int index, char c) {
+  jstring_t* jstr = jas_string(jnode);
+  jvector_insert(char, &jstr->string, index, &c, 1);
+  return 1;
+}
+
+int jstring_concat(jnode_t* jnode, const char* string) {
+  jstring_t* jstr = jas_string(jnode);
+  int len = strlen(string);
+  jvector_concat(char, &jstr->string, string, len);
+  return 1;
+}
+
+int jstring_pop(jnode_t* jnode) {
+  jstring_t* jstr = jas_string(jnode);
+  jvector_pop(char, &jstr->string, 1);
+  return 1;
+}
+
+int jstring_remove(jnode_t* jnode, int index) {
+  jstring_t* jstr = jas_string(jnode);
+  jvector_remove(char, &jstr->string, index, 1);
+  return 1;
+}
+
+int jstring_truncate(jnode_t* jnode, int len) {
+  jstring_t* jstr = jas_string(jnode);
+  jvector_pop(char, &jstr->string, jvector_len(jstr->string) - len);
+  return 1;
+}
+
+/* ==============================
+ *       4. ARRAY OPERATION
  * ============================== */
 
 int jarray_size(jnode_t* jnode) {
@@ -427,7 +483,7 @@ int jarray_remove(jnode_t* jnode, int index) {
 }
 
 /* ==============================
- *      4. OBJECT OPERATION
+ *      5. OBJECT OPERATION
  * ============================== */
 
 int jobject_size(jnode_t* jnode) {
@@ -540,11 +596,11 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
 }
 
 /* ==============================
- *          5. FROM_STRING
+ *          6. FROM_STRING
  * ============================== */
 
 /* ==============================
- *          5.1 LEXING
+ *          6.1 LEXING
  * ============================== */
 
 #define jlexer_ptr(lexer, index) ((lexer)->data + (index))
@@ -714,7 +770,7 @@ static int jlex(jlexer_t* lexer, tv* tokens) {
 }
 
 /* ==============================
- *          5.2 PARSING
+ *          6.2 PARSING
  * ============================== */
 
 #define jparser_ptr(parser, index) ((parser)->data + (index))

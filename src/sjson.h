@@ -100,6 +100,16 @@ jnode_t* jarray_new();
 jnode_t* jobject_new();
 void jdelete(jnode_t* jnode);
 
+int jstring_len(jnode_t* jnode);
+char jstring_get(jnode_t* jnode, int index);
+const char* jstring_content(jnode_t* jnode);
+int jstring_add(jnode_t* jnode, char c);
+int jstring_insert(jnode_t* jnode, int index, char c);
+int jstring_concat(jnode_t* jnode, const char* string);
+int jstring_pop(jnode_t* jnode);
+int jstring_remove(jnode_t* jnode, int index);
+int jstring_truncate(jnode_t* jnode, int len);  // retain string of length `len`
+
 int jarray_size(jnode_t* jnode);
 jnode_t* jarray_get(jnode_t* jnode, int index);
 int jarray_add(jnode_t* jnode, jnode_t* value);  // move into array
