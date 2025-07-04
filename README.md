@@ -24,7 +24,7 @@ To use sjson in your project, simply copy `sjson.h` and `sjson.c` into your sour
 ```c
 #include <stdio.h>
 #include <stdlib.h>
-#include <sjson.h>
+#include "sjson.h"
 
 int main() {
     // Create a JSON object
@@ -46,7 +46,7 @@ int main() {
     if (jis_object(parsed)) {
         jnode_t* name = jobject_get(parsed, "name");
         if (jis_string(name)) {
-            printf("Name: %s\n", jas_string(name)->string.data);
+            printf("Name: %s\n", jstring_content(name));
         }
     }
     
@@ -58,6 +58,8 @@ int main() {
     return 0;
 }
 ```
+
+For more example, plz check out [demo](./demo/) directory!
 
 ## API Reference
 
@@ -226,7 +228,7 @@ if (parsed == NULL) {
 
 ## License
 
-This project is provided as-is. Please check the license file for details.
+This project is provided as-is. Please check the [license file](./LICENSE) for details.
 
 ## Contributing
 
