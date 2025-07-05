@@ -22,7 +22,7 @@ int main() {
   if (jis_object(parsed)) {
     jnode_t* name = jobject_get(parsed, "name");
     if (jis_string(name)) {
-      printf("Name: %s\n", jas_string(name)->string.data);
+      printf("Name: %s\n", jstring_content(name));
     }
   }
 

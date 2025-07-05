@@ -5,6 +5,17 @@
 
 #include <sjson.h>
 
+/* ==========================
+ *       ERROR OPERATION
+ * ========================== */
+
+#define MSG_BUFFER_LEN 1024
+#define jerror_log(fmt, ...) sprintf(err_msg, (fmt), ##__VA_ARGS__)
+
+static char err_msg[MSG_BUFFER_LEN];
+
+const char* jerror() { return err_msg; }
+
 /* =======================
  *          UTILS
  * ======================= */
@@ -16,9 +27,17 @@ static void* reallocate(void* ptr, int old, int new) {
     free(ptr);
     return 0;
   } else if (!old) {
-    return malloc(new);
+    if (!(ptr = malloc(new))) {
+      jerror_log("Insufficient memory.");
+      return 0;
+    }
+    return ptr;
   } else {
-    return realloc(ptr, new);
+    if (!(ptr = realloc(ptr, new))) {
+      jerror_log("Insufficient memory.");
+      return 0;
+    }
+    return ptr;
   }
 }
 
@@ -62,17 +81,19 @@ static void tvector_init(tv* v) {
 
 static void tvector_free(tv* v) { reallocate(v->data, 0, 0); }
 
-static void tvector_add(tv* v, const void* value, int len, int typesz) {
+static int tvector_add(tv* v, const void* value, int len, int typesz) {
   if (v->len + len > v->capacity) {
     int old = v->capacity * typesz;
     while (v->len + len > v->capacity) v->capacity = grow_capacity(v->capacity);
     int new = v->capacity * typesz;
     v->data = reallocate(v->data, old, new);
+    if (!v->data) return 0;
   }
 
   void* target = v->data + v->len * typesz;
   memcpy(target, value, typesz * len);
   v->len += len;
+  return 1;
 }
 
 /* Popped value will remain at the end of the vector until next write.
@@ -83,18 +104,19 @@ static void* tvector_pop(tv* v, int len, int typesz) {
   return v->data + v->len * typesz;
 }
 
-static void tvector_right_shift(tv* v, int index, int distance, int typesz) {
-  if (v->len == 0) return;
+static int tvector_right_shift(tv* v, int index, int distance, int typesz) {
+  if (v->len == 0) return 1;
 
   // Ensure there is enough memory
   const void* last_item = v->data + (v->len - 1) * typesz;
-  tvector_add(v, last_item, distance, typesz);
+  if (!tvector_add(v, last_item, distance, typesz)) return 0;
 
   // Shifting
   int len = v->len - index;
   const void* start = v->data + index * typesz;
   void* target = v->data + (index + distance) * typesz;
   memmove(target, start, len * typesz);
+  return 1;
 }
 
 /* Overwritten contents will be swapped to the end of the vector until next
@@ -116,16 +138,25 @@ static void* tvector_left_shift(tv* v, int index, int distance, int typesz) {
   return v->data + v->len * typesz;
 }
 
-static void tvector_insert(tv* v, int index, const void* value, int len,
-                           int typesz) {
-  tvector_right_shift(v, index, len, typesz);
+static int tvector_insert(tv* v, int index, const void* value, int len,
+                          int typesz) {
+  if (index < 0 || index >= v->len) {
+    jerror_log("Invalid index '%d'.", index);
+    return 0;
+  }
+  if (!tvector_right_shift(v, index, len, typesz)) return 0;
   void* start = v->data + index * typesz;
   memcpy(start, value, len * typesz);
+  return 1;
 }
 
 /* Removed value will remain at the end of the vector until next write.
  * User should maintain those contents. */
 static void* tvector_remove(tv* v, int index, int len, int typesz) {
+  if (index < 0 || index >= v->len) {
+    jerror_log("Invalid index '%d'.", index);
+    return 0;
+  }
   return tvector_left_shift(v, index + len, len, typesz);
 }
 
@@ -142,12 +173,14 @@ static void* tvector_remove(tv* v, int index, int len, int typesz) {
 #define jht_index(ht, key) (fnv1a(key) % jht_capacity(ht))
 #define jht_head(ht, key) jvector_get((ht), jht_index((ht), key))
 
-static void jht_init(tv* ht) {
+static int jht_init(tv* ht) {
   jvector_init(jkv_t, ht);
   ht->capacity = jht_capacity_grow(ht->capacity);
   int new = ht->capacity * sizeof(jkv_t);
   ht->data = reallocate(0, 0, new);
+  if (!ht->data) return 0;
   memset(ht->data, 0, new);
+  return 1;
 }
 
 static void jht_free(tv* ht) {
@@ -166,9 +199,10 @@ static void jht_free(tv* ht) {
   jvector_free(jkv_t, ht);
 }
 
-static void jht_grow(tv* ht) {
+static int jht_grow(tv* ht) {
   tv new_ht = {.len = ht->len, .capacity = jht_capacity_grow(ht->capacity)};
   new_ht.data = reallocate(0, 0, new_ht.capacity * sizeof(jkv_t));
+  if (!new_ht.data) return 0;
   memset(new_ht.data, 0, new_ht.capacity * sizeof(jkv_t));
 
   // remapping (move)
@@ -190,6 +224,7 @@ static void jht_grow(tv* ht) {
 
   // just copy the content
   *ht = new_ht;
+  return 1;
 }
 
 /* ==============================
@@ -214,40 +249,37 @@ static int (*jto_strings[])(jnode_t*, tv*) = {
 };
 
 static int jnull_to_string(jnode_t* jnode, tv* jstr) {
-  jvector_concat(char, jstr, "null", 4);
-  return 1;
+  return jvector_concat(char, jstr, "null", 4);
 }
 
 static int jbool_to_string(jnode_t* jnode, tv* jstr) {
   jbool_t* jbool = jas_bool(jnode);
   if (jbool->value) {
-    jvector_concat(char, jstr, "true", 4);
+    return jvector_concat(char, jstr, "true", 4);
   } else {
-    jvector_concat(char, jstr, "false", 5);
+    return jvector_concat(char, jstr, "false", 5);
   }
-  return 1;
 }
 
 static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
   jnumber_t* jnum = jas_number(jnode);
   char buffer[64];
   int len = sprintf(buffer, "%g", jnum->value);
-  jvector_concat(char, jstr, buffer, len);
-  return 1;
+  return jvector_concat(char, jstr, buffer, len);
 }
 
 static int jstring_to_string(jnode_t* jnode, tv* jstr) {
   jstring_t* jstring = jas_string(jnode);
-  jvector_concat(char, jstr, "\"", 1);
-  jvector_concat(char, jstr, jvector_data(jstring->string),
-                 jvector_len(jstring->string));
-  jvector_concat(char, jstr, "\"", 1);
-  return 1;
+  if (!jvector_concat(char, jstr, "\"", 1)) return 0;
+  if (!jvector_concat(char, jstr, jvector_data(jstring->string),
+                      jvector_len(jstring->string)))
+    return 0;
+  return jvector_concat(char, jstr, "\"", 1);
 }
 
 static int jarray_to_string(jnode_t* jnode, tv* jstr) {
   jarray_t* jarray = jas_array(jnode);
-  jvector_concat(char, jstr, "[", 1);
+  if (!jvector_concat(char, jstr, "[", 1)) return 0;
 
   jnode_t* item = *jvector_get(jarray->array, 0);
   if (!jto_strings[item->type](item, jas_tv(jstr))) return 0;
@@ -257,13 +289,12 @@ static int jarray_to_string(jnode_t* jnode, tv* jstr) {
     if (!jto_strings[item->type](item, jas_tv(jstr))) return 0;
   }
 
-  jvector_concat(char, jstr, "]", 1);
-  return 1;
+  return jvector_concat(char, jstr, "]", 1);
 }
 
 static int jobject_to_string(jnode_t* jnode, tv* jstr) {
   jobject_t* jobj = jas_object(jnode);
-  jvector_concat(char, jstr, "{", 1);
+  if (!jvector_concat(char, jstr, "{", 1)) return 0;
 
   // iterating items
   int count = 0;
@@ -273,25 +304,25 @@ static int jobject_to_string(jnode_t* jnode, tv* jstr) {
       count++;
 
       int len = strlen(it->key);
-      jvector_concat(char, jstr, "\"", 1);
-      jvector_concat(char, jstr, it->key, len);
-      jvector_concat(char, jstr, "\": ", 3);
+      if (!jvector_concat(char, jstr, "\"", 1)) return 0;
+      if (!jvector_concat(char, jstr, it->key, len)) return 0;
+      if (!jvector_concat(char, jstr, "\": ", 3)) return 0;
 
       jnode_t* item = it->value;
       if (!jto_strings[item->type](item, jas_tv(jstr))) return 0;
-      if (count < jht_size(jobj->hashmap)) jvector_concat(char, jstr, ", ", 2);
+      if (count < jht_size(jobj->hashmap))
+        if (!jvector_concat(char, jstr, ", ", 2)) return 0;
     }
   }
 
-  jvector_concat(char, jstr, "}", 1);
-  return 1;
+  return jvector_concat(char, jstr, "}", 1);
 }
 
 char* jto_string(jnode_t* jnode) {
   jvector(char, jstr);
   jvector_init(char, &jstr);
   if (jto_strings[jnode->type](jnode, jas_tv(&jstr))) {
-    jvector_concat(char, &jstr, "\0", 1);
+    if (!jvector_concat(char, &jstr, "\0", 1)) return 0;
     return jvector_data(jstr);
   } else {
     return 0;
@@ -319,6 +350,7 @@ jnode_t* jbool_new(int value) {
 
 jnode_t* jnumber_new(double value) {
   jnumber_t* jnum = reallocate(0, 0, sizeof(jnumber_t));
+  if (!jnum) return 0;
   jnum->type = JNUMBER;
   jnum->value = value;
   return jcast(jnum, jnode_t*);
@@ -326,15 +358,20 @@ jnode_t* jnumber_new(double value) {
 
 jnode_t* jstring_new(int len, const char* string) {
   jstring_t* jstr = reallocate(0, 0, sizeof(jstring_t));
+  if (!jstr) return 0;
   jstr->type = JSTRING;
   jvector_init(char, &jstr->string);
   if (!len) len = strlen(string);
-  jvector_concat(char, &jstr->string, string, len);
+  if (!jvector_concat(char, &jstr->string, string, len)) {
+    reallocate(jstr, sizeof(jstring_t), 0);
+    return 0;
+  }
   return jcast(jstr, jnode_t*);
 }
 
 jnode_t* jarray_new() {
   jarray_t* jarray = reallocate(0, 0, sizeof(jarray_t));
+  if (!jarray) return 0;
   jarray->type = JARRAY;
   jvector_init(jnode_t, &jarray->array);
   return jcast(jarray, jnode_t*);
@@ -342,8 +379,12 @@ jnode_t* jarray_new() {
 
 jnode_t* jobject_new() {
   jobject_t* jobj = reallocate(0, 0, sizeof(jobject_t));
+  if (!jobj) return 0;
   jobj->type = JOBJECT;
-  jht_init(jas_tv(&jobj->hashmap));
+  if (!jht_init(jas_tv(&jobj->hashmap))) {
+    reallocate(jobj, sizeof(jobject_t), 0);
+    return 0;
+  }
   return jcast(jobj, jnode_t*);
 }
 
@@ -399,21 +440,18 @@ const char* jstring_content(jnode_t* jnode) {
 
 int jstring_add(jnode_t* jnode, char c) {
   jstring_t* jstr = jas_string(jnode);
-  jvector_concat(char, &jstr->string, &c, 1);
-  return 1;
+  return jvector_concat(char, &jstr->string, &c, 1);
 }
 
 int jstring_insert(jnode_t* jnode, int index, char c) {
   jstring_t* jstr = jas_string(jnode);
-  jvector_insert(char, &jstr->string, index, &c, 1);
-  return 1;
+  return jvector_insert(char, &jstr->string, index, &c, 1);
 }
 
 int jstring_concat(jnode_t* jnode, const char* string) {
   jstring_t* jstr = jas_string(jnode);
   int len = strlen(string);
-  jvector_concat(char, &jstr->string, string, len);
-  return 1;
+  return jvector_concat(char, &jstr->string, string, len);
 }
 
 int jstring_pop(jnode_t* jnode) {
@@ -450,14 +488,12 @@ jnode_t* jarray_get(jnode_t* jnode, int index) {
 
 int jarray_add(jnode_t* jnode, jnode_t* value) {
   jarray_t* jarr = jas_array(jnode);
-  jvector_concat(jnode_t*, &jarr->array, &value, 1);
-  return 1;
+  return jvector_concat(jnode_t*, &jarr->array, &value, 1);
 }
 
 int jarray_insert(jnode_t* jnode, int index, jnode_t* value) {
   jarray_t* jarr = jas_array(jnode);
-  jvector_insert(jnode_t*, &jarr->array, index, &value, 1);
-  return 1;
+  return jvector_insert(jnode_t*, &jarr->array, index, &value, 1);
 }
 
 int jarray_pop(jnode_t* jnode) {
@@ -467,15 +503,16 @@ int jarray_pop(jnode_t* jnode) {
     jdelete(item);
     return 1;
   } else {
+    jerror_log("Array is empty.");
     return 0;
   }
 }
 
 int jarray_remove(jnode_t* jnode, int index) {
   jarray_t* jarr = jas_array(jnode);
-  jnode_t* item = *jvector_remove(jnode_t*, &jarr->array, index, 1);
+  jnode_t** item = jvector_remove(jnode_t*, &jarr->array, index, 1);
   if (item) {
-    jdelete(item);
+    jdelete(*item);
     return 1;
   } else {
     return 0;
@@ -533,6 +570,11 @@ jnode_t* jobject_get(jnode_t* jnode, const char* key) {
     }
   }
 
+  if (!found) {
+    jerror_log("Key '%s' not exists.", key);
+    return 0;
+  }
+
   // remap if load is too high
   if (len > jht_max_len) {
     jht_grow(jas_tv(&jobj->hashmap));
@@ -542,6 +584,11 @@ jnode_t* jobject_get(jnode_t* jnode, const char* key) {
 }
 
 int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
+  if (!key) {
+    jerror_log("Null key.");
+    return 0;
+  }
+
   jobject_t* jobj = jas_object(jnode);
   int hash = fnv1a(key);
   jkv_t* head = jht_head(jobj->hashmap, key);
@@ -578,9 +625,14 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
     if (value) {
       // add
       jkv_t* new = reallocate(0, 0, sizeof(jkv_t));
+      if (!new) return 0;
       new->value = value;
       int len = strlen(key);
       new->key = reallocate(0, 0, len + 1);
+      if (!new->key) {
+        reallocate(new, sizeof(jkv_t), 0);
+        return 0;
+      }
       strcpy(new->key, key);
 
       // prepend
@@ -591,6 +643,7 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
       changed = 1;
     } else {
       // do nothing
+      jerror_log("Null key and null value.");
       changed = 0;
     }
   }
@@ -621,15 +674,19 @@ void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
  *          6.1 LEXING
  * ============================== */
 
+#define jlexer_linecol_str " at line %d, column %d."
+#define jlexer_linecol(lexer) (lexer)->line, (lexer)->col
 #define jlexer_ptr(lexer, index) ((lexer)->data + (index))
 #define jlexer_currptr(lexer) jlexer_ptr((lexer), (lexer)->curr)
 #define jlexer_look(lexer, offset) \
   (*jlexer_ptr((lexer), (lexer)->curr + (offset)))
 #define jlexer_peek(lexer) jlexer_look((lexer), 0)
+#define jlexer_match(lexer, c) (jlexer_peek(lexer) == (c))
 #define jlexer_move(lexer, distance)                            \
   do {                                                          \
     for (int i = 0; i < (distance); i++) jlexer_advance(lexer); \
   } while (0)
+#define jlexer_rest(lexer) ((lexer)->len - (lexer)->curr)
 #define jlexer_is_end(lexer) ((lexer)->curr >= (lexer)->len)
 #define jlexer_to_token(lexer, name, type_, len_, ...) \
   jtoken_t name = {.line = (lexer)->line,              \
@@ -638,6 +695,10 @@ void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
                    .len = (len_),                      \
                    .lexeme = jlexer_currptr(lexer),    \
                    ##__VA_ARGS__}
+
+#define jtoken_linecol_str " at line %d, column %d."
+#define jtoken_linecol(token) (token)->line, (token)->col
+#define jtoken_lenlexeme(token) (token)->len, (token)->lexeme
 
 enum jtktype {
   JTK_NULL = 256,
@@ -669,7 +730,7 @@ typedef struct jlexer {
 } jlexer_t;
 
 static void jlexer_advance(jlexer_t* lexer) {
-  if (jlexer_peek(lexer) == '\n') {
+  if (jlexer_match(lexer, '\n')) {
     lexer->line++;
     lexer->col = 0;
   } else {
@@ -687,12 +748,19 @@ static void jlexer_skip_blank(jlexer_t* lexer) {
 static int jlex_keyword(jlexer_t* lexer, tv* tokens, int type,
                         const char* keyword) {
   int len = strlen(keyword);
+  if (jlexer_rest(lexer) < len) {
+    jerror_log("Insufficient input for lexing" jlexer_linecol_str,
+               jlexer_linecol(lexer));
+    return 0;
+  }
   if (!strncmp(jlexer_currptr(lexer), keyword, len)) {
     jlexer_to_token(lexer, tk, type, len);
-    jvector_concat(jtoken_t, tokens, &tk, 1);
+    if (!jvector_concat(jtoken_t, tokens, &tk, 1)) return 0;
     jlexer_move(lexer, len);
     return 1;
   } else {
+    jerror_log("Expect keyword '%s' but got '%.8s'" jlexer_linecol_str, keyword,
+               jlexer_currptr(lexer), jlexer_linecol(lexer));
     return 0;
   }
 }
@@ -700,31 +768,42 @@ static int jlex_keyword(jlexer_t* lexer, tv* tokens, int type,
 static int jlex_number(jlexer_t* lexer, tv* tokens) {
   char* end = 0;
   double val = strtod(jlexer_currptr(lexer), &end);
-
-  // TODO: Error handle
-
   int len = end - jlexer_currptr(lexer);
+  if (!len) {
+    jerror_log("Unknown number format '%.8s'" jlexer_linecol_str,
+               jlexer_currptr(lexer), jlexer_linecol(lexer));
+    return 0;
+  }
+
   jlexer_to_token(lexer, tk, JTK_NUMBER, len, .as.number = val);
-  jvector_concat(jtoken_t, tokens, &tk, 1);
+  if (!jvector_concat(jtoken_t, tokens, &tk, 1)) return 0;
   jlexer_move(lexer, len);
   return 1;
 }
 
 static int jlex_string(jlexer_t* lexer, tv* tokens) {
-  if (jlexer_peek(lexer) != '\"') return 0;
+  if (!jlexer_match(lexer, '\"')) {
+    jerror_log("Expect \" but got '%c'" jlexer_linecol_str, jlexer_peek(lexer),
+               jlexer_linecol(lexer));
+    return 0;
+  }
   jlexer_to_token(lexer, tk, JTK_STRING, 0);
   jlexer_advance(lexer);
   tk.len++;
   tk.as.string = jlexer_currptr(lexer);
-  while (!jlexer_is_end(lexer) && jlexer_peek(lexer) != '\"') {
+  while (!jlexer_is_end(lexer) && !jlexer_match(lexer, '\"') &&
+         !jlexer_match(lexer, '\n')) {
     tk.len++;
     jlexer_advance(lexer);
   }
-  if (jlexer_peek(lexer) != '\"') return 0;
+  if (!jlexer_match(lexer, '\"')) {
+    jerror_log("Expect \" but got '%c'" jlexer_linecol_str, jlexer_peek(lexer),
+               jlexer_linecol(lexer));
+    return 0;
+  }
   jlexer_advance(lexer);
   tk.len++;
-  jvector_concat(jtoken_t, tokens, &tk, 1);
-  return 1;
+  return jvector_concat(jtoken_t, tokens, &tk, 1);
 }
 
 static int jlex(jlexer_t* lexer, tv* tokens) {
@@ -774,18 +853,21 @@ static int jlex(jlexer_t* lexer, tv* tokens) {
       case ',':
       case ':': {
         jlexer_to_token(lexer, tk, jlexer_peek(lexer), 1);
-        jvector_concat(jtoken_t, tokens, &tk, 1);
+        if (!jvector_concat(jtoken_t, tokens, &tk, 1)) return 0;
         jlexer_advance(lexer);
         break;
       }
 
-      default: return 0;  // Unrecognizable token
+      default: {
+        // Unrecognizable character
+        jerror_log("Unrecognizable character '%c'" jlexer_linecol_str,
+                   jlexer_peek(lexer), jlexer_linecol(lexer));
+        return 0;
+      }
     }
   }
   jlexer_to_token(lexer, tk, JTK_EOF, 0);
-  jvector_concat(jtoken_t, tokens, &tk, 1);
-
-  return 1;
+  return jvector_concat(jtoken_t, tokens, &tk, 1);
 }
 
 /* ==============================
@@ -820,11 +902,14 @@ static jnode_t* jparse_array(jparser_t* parser) {
     jdelete(array);
     return 0;
   }
-  jarray_add(array, first_item);
+  if (!jarray_add(array, first_item)) return 0;
 
   // parse rest items
   while (!jparser_is_end(parser) && !jparser_match(parser, ']')) {
     if (!jparser_match(parser, ',')) {
+      const jtoken_t* tk = jparser_currptr(parser);
+      jerror_log("Expect ',' but got '%.*s'" jtoken_linecol_str,
+                 jtoken_lenlexeme(tk), jtoken_linecol(tk));
       jdelete(array);
       return 0;
     }
@@ -835,10 +920,13 @@ static jnode_t* jparse_array(jparser_t* parser) {
       jdelete(array);
       return 0;
     }
-    jarray_add(array, item);
+    if (!jarray_add(array, item)) return 0;
   }
 
-  if (jparser_is_end(parser)) {
+  if (jparser_is_end(parser) || !jparser_match(parser, ']')) {
+    const jtoken_t* tk = jparser_currptr(parser);
+    jerror_log("Expect ']' but got '%.*s'" jtoken_linecol_str,
+               jtoken_lenlexeme(tk), jtoken_linecol(tk));
     jdelete(array);
     return 0;
   }
@@ -852,12 +940,18 @@ static jkv_t jparse_keyvalue(jparser_t* parser) {
   jkv_t kv = {};
 
   if (!jparser_match(parser, JTK_STRING)) {
+    const jtoken_t* tk = jparser_currptr(parser);
+    jerror_log("Expect a string but got '%.*s'" jtoken_linecol_str,
+               jtoken_lenlexeme(tk), jtoken_linecol(tk));
     return kv;
   }
   const jtoken_t* key = jparser_currptr(parser);
   jparser_advance(parser);
 
   if (!jparser_match(parser, ':')) {
+    const jtoken_t* tk = jparser_currptr(parser);
+    jerror_log("Expect ':' but got '%.*s'" jtoken_linecol_str,
+               jtoken_lenlexeme(tk), jtoken_linecol(tk));
     return kv;
   }
   jparser_advance(parser);
@@ -866,6 +960,7 @@ static jkv_t jparse_keyvalue(jparser_t* parser) {
   if (!value || value == jparse_end_return) return kv;
 
   kv.key = reallocate(kv.key, 0, key->len - 1);
+  if (!kv.key) return kv;
   strncpy(kv.key, key->as.string, key->len - 2);
   kv.value = value;
   return kv;
@@ -885,11 +980,14 @@ static jnode_t* jparse_object(jparser_t* parser) {
     return 0;
   }
   jobject_put(obj, first_kv.key, first_kv.value);
-  reallocate(first_kv.key, 0, 0);  // key is copied
+  reallocate(first_kv.key, 0, 0);  // free key after copy
 
   // parse rest key values
   while (!jparser_is_end(parser) && !jparser_match(parser, '}')) {
     if (!jparser_match(parser, ',')) {
+      const jtoken_t* tk = jparser_currptr(parser);
+      jerror_log("Expect ',' but got '%.*s'" jtoken_linecol_str,
+                 jtoken_lenlexeme(tk), jtoken_linecol(tk));
       jdelete(obj);
       return 0;
     }
@@ -904,7 +1002,10 @@ static jnode_t* jparse_object(jparser_t* parser) {
     reallocate(kv.key, 0, 0);  // key is copied
   }
 
-  if (jparser_is_end(parser)) {
+  if (jparser_is_end(parser) && !jparser_match(parser, '}')) {
+    const jtoken_t* tk = jparser_currptr(parser);
+    jerror_log("Expect '}' but got '%.*s'" jtoken_linecol_str,
+               jtoken_lenlexeme(tk), jtoken_linecol(tk));
     jdelete(obj);
     return 0;
   }

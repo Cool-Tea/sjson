@@ -5,7 +5,7 @@
 #define println(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
 
 int main() {
-  const char* json_path = "demo/example.json";
+  const char* json_path = "demo/parse.json";
 
   FILE* jp = fopen(json_path, "r");
   if (!jp) {
