@@ -128,6 +128,6 @@ int jobject_put(jnode_t* jnode, const char* key,
                                   // exists. erase when value is null.
 void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*));
 
-const char* jerror();
+const char* jerror();  // return 0 when no error.
 
 #endif

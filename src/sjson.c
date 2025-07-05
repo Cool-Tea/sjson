@@ -10,11 +10,21 @@
  * ========================== */
 
 #define MSG_BUFFER_LEN 1024
-#define jerror_log(fmt, ...) sprintf(err_msg, (fmt), ##__VA_ARGS__)
+#define jerror_clear() \
+  do {                 \
+    has_err = 0;       \
+    err_msg[0] = 0;    \
+  } while (0)
+#define jerror_log(fmt, ...)                \
+  do {                                      \
+    has_err = 1;                            \
+    sprintf(err_msg, (fmt), ##__VA_ARGS__); \
+  } while (0)
 
+static int has_err = 0;
 static char err_msg[MSG_BUFFER_LEN];
 
-const char* jerror() { return err_msg; }
+const char* jerror() { return has_err ? err_msg : 0; }
 
 /* =======================
  *          UTILS
@@ -45,6 +55,7 @@ static const char* type_str[] = {
 };
 
 static void* reallocate(void* ptr, int old, int new) {
+  jerror_clear();
   if (!new) {
     free(ptr);
     return 0;
@@ -97,13 +108,18 @@ typedef struct tvector {
 } tv;
 
 static void tvector_init(tv* v) {
+  jerror_clear();
   v->len = v->capacity = 0;
   v->data = 0;
 }
 
-static void tvector_free(tv* v) { reallocate(v->data, 0, 0); }
+static void tvector_free(tv* v) {
+  jerror_clear();
+  reallocate(v->data, 0, 0);
+}
 
 static int tvector_add(tv* v, const void* value, int len, int typesz) {
+  jerror_clear();
   if (v->len + len > v->capacity) {
     int old = v->capacity * typesz;
     while (v->len + len > v->capacity) v->capacity = grow_capacity(v->capacity);
@@ -121,12 +137,14 @@ static int tvector_add(tv* v, const void* value, int len, int typesz) {
 /* Popped value will remain at the end of the vector until next write.
  * User should maintain those contents. */
 static void* tvector_pop(tv* v, int len, int typesz) {
+  jerror_clear();
   v->len -= len;
   if (v->len < 0) v->len = 0;
   return v->data + v->len * typesz;
 }
 
 static int tvector_right_shift(tv* v, int index, int distance, int typesz) {
+  jerror_clear();
   if (v->len == 0) return 1;
 
   // Ensure there is enough memory
@@ -144,6 +162,7 @@ static int tvector_right_shift(tv* v, int index, int distance, int typesz) {
 /* Overwritten contents will be swapped to the end of the vector until next
  * write. User should maintain those contents. */
 static void* tvector_left_shift(tv* v, int index, int distance, int typesz) {
+  jerror_clear();
   if (index < distance) distance = index;
 
   // Byte2Byte Swapping
@@ -162,6 +181,7 @@ static void* tvector_left_shift(tv* v, int index, int distance, int typesz) {
 
 static int tvector_insert(tv* v, int index, const void* value, int len,
                           int typesz) {
+  jerror_clear();
   if (index < 0 || index >= v->len) {
     jerror_log("Invalid index '%d'.", index);
     return 0;
@@ -175,6 +195,7 @@ static int tvector_insert(tv* v, int index, const void* value, int len,
 /* Removed value will remain at the end of the vector until next write.
  * User should maintain those contents. */
 static void* tvector_remove(tv* v, int index, int len, int typesz) {
+  jerror_clear();
   if (index < 0 || index >= v->len) {
     jerror_log("Invalid index '%d'.", index);
     return 0;
@@ -196,6 +217,7 @@ static void* tvector_remove(tv* v, int index, int len, int typesz) {
 #define jht_head(ht, key) jvector_get((ht), jht_index((ht), key))
 
 static int jht_init(tv* ht) {
+  jerror_clear();
   jvector_init(jkv_t, ht);
   ht->capacity = jht_capacity_grow(ht->capacity);
   int new = ht->capacity * sizeof(jkv_t);
@@ -206,6 +228,7 @@ static int jht_init(tv* ht) {
 }
 
 static void jht_free(tv* ht) {
+  jerror_clear();
   for (int i = 0; i < ht->capacity; i++) {
     jkv_t* head = ht->data + i * sizeof(jkv_t);
     while (head->next) {
@@ -222,6 +245,7 @@ static void jht_free(tv* ht) {
 }
 
 static int jht_grow(tv* ht) {
+  jerror_clear();
   tv new_ht = {.len = ht->len, .capacity = jht_capacity_grow(ht->capacity)};
   new_ht.data = reallocate(0, 0, new_ht.capacity * sizeof(jkv_t));
   if (!new_ht.data) return 0;
@@ -271,10 +295,12 @@ static int (*jto_strings[])(jnode_t*, tv*) = {
 };
 
 static int jnull_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   return jvector_concat(char, jstr, "null", 4);
 }
 
 static int jbool_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   check_type(jnode, boolean, 0);
   jbool_t* jbool = jas_bool(jnode);
   if (jbool->value) {
@@ -285,6 +311,7 @@ static int jbool_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   check_type(jnode, number, 0);
   jnumber_t* jnum = jas_number(jnode);
   char buffer[64];
@@ -293,6 +320,7 @@ static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jstring_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstring = jas_string(jnode);
   if (!jvector_concat(char, jstr, "\"", 1)) return 0;
@@ -303,6 +331,7 @@ static int jstring_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jarray_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarray = jas_array(jnode);
   if (!jvector_concat(char, jstr, "[", 1)) return 0;
@@ -319,6 +348,7 @@ static int jarray_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jobject_to_string(jnode_t* jnode, tv* jstr) {
+  jerror_clear();
   check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   if (!jvector_concat(char, jstr, "{", 1)) return 0;
@@ -346,6 +376,7 @@ static int jobject_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 char* jto_string(jnode_t* jnode) {
+  jerror_clear();
   jvector(char, jstr);
   jvector_init(char, &jstr);
   if (jto_strings[jnode->type](jnode, jas_tv(&jstr))) {
@@ -361,11 +392,13 @@ char* jto_string(jnode_t* jnode) {
  * ============================== */
 
 jnode_t* jnull_new() {
+  jerror_clear();
   static jnull_t jnull_ = {.type = JNULL};
   return jcast(&jnull_, jnode_t*);
 }
 
 jnode_t* jbool_new(int value) {
+  jerror_clear();
   static jbool_t jtrue_ = {.type = JBOOLEAN, .value = 1};
   static jbool_t jfalse_ = {.type = JBOOLEAN, .value = 0};
   if (value) {
@@ -376,6 +409,7 @@ jnode_t* jbool_new(int value) {
 }
 
 jnode_t* jnumber_new(double value) {
+  jerror_clear();
   jnumber_t* jnum = reallocate(0, 0, sizeof(jnumber_t));
   if (!jnum) return 0;
   jnum->type = JNUMBER;
@@ -384,6 +418,7 @@ jnode_t* jnumber_new(double value) {
 }
 
 jnode_t* jstring_new(int len, const char* string) {
+  jerror_clear();
   jstring_t* jstr = reallocate(0, 0, sizeof(jstring_t));
   if (!jstr) return 0;
   jstr->type = JSTRING;
@@ -397,6 +432,7 @@ jnode_t* jstring_new(int len, const char* string) {
 }
 
 jnode_t* jarray_new() {
+  jerror_clear();
   jarray_t* jarray = reallocate(0, 0, sizeof(jarray_t));
   if (!jarray) return 0;
   jarray->type = JARRAY;
@@ -405,6 +441,7 @@ jnode_t* jarray_new() {
 }
 
 jnode_t* jobject_new() {
+  jerror_clear();
   jobject_t* jobj = reallocate(0, 0, sizeof(jobject_t));
   if (!jobj) return 0;
   jobj->type = JOBJECT;
@@ -416,6 +453,7 @@ jnode_t* jobject_new() {
 }
 
 void jdelete(jnode_t* jnode) {
+  jerror_clear();
   if (!jnode) return;
   switch (jnode->type) {
     case JNULL: break;
@@ -451,36 +489,42 @@ void jdelete(jnode_t* jnode) {
  * ============================== */
 
 int jstring_len(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_len(jstr->string);
 }
 
 char jstring_get(jnode_t* jnode, int index) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return *jvector_get(jstr->string, index);
 }
 
 const char* jstring_content(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_data(jstr->string);
 }
 
 int jstring_add(jnode_t* jnode, char c) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_concat(char, &jstr->string, &c, 1);
 }
 
 int jstring_insert(jnode_t* jnode, int index, char c) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_insert(char, &jstr->string, index, &c, 1);
 }
 
 int jstring_concat(jnode_t* jnode, const char* string) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   int len = strlen(string);
@@ -488,6 +532,7 @@ int jstring_concat(jnode_t* jnode, const char* string) {
 }
 
 int jstring_pop(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_pop(char, &jstr->string, 1);
@@ -495,6 +540,7 @@ int jstring_pop(jnode_t* jnode) {
 }
 
 int jstring_remove(jnode_t* jnode, int index) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_remove(char, &jstr->string, index, 1);
@@ -502,6 +548,7 @@ int jstring_remove(jnode_t* jnode, int index) {
 }
 
 int jstring_truncate(jnode_t* jnode, int len) {
+  jerror_clear();
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_pop(char, &jstr->string, jvector_len(jstr->string) - len);
@@ -513,30 +560,35 @@ int jstring_truncate(jnode_t* jnode, int len) {
  * ============================== */
 
 int jarray_size(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_len(jarr->array);
 }
 
 jnode_t* jarray_get(jnode_t* jnode, int index) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return *jvector_get(jarr->array, index);
 }
 
 int jarray_add(jnode_t* jnode, jnode_t* value) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_concat(jnode_t*, &jarr->array, &value, 1);
 }
 
 int jarray_insert(jnode_t* jnode, int index, jnode_t* value) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_insert(jnode_t*, &jarr->array, index, &value, 1);
 }
 
 int jarray_pop(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   jnode_t* item = *jvector_pop(jnode_t*, &jarr->array, 1);
@@ -550,6 +602,7 @@ int jarray_pop(jnode_t* jnode) {
 }
 
 int jarray_remove(jnode_t* jnode, int index) {
+  jerror_clear();
   check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   jnode_t** item = jvector_remove(jnode_t*, &jarr->array, index, 1);
@@ -562,6 +615,7 @@ int jarray_remove(jnode_t* jnode, int index) {
 }
 
 void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
+  jerror_clear();
   check_type(jnode, array, );
   jarray_t* jarr = jas_array(jnode);
   jvector_foreach(i, jarr->array) {
@@ -575,12 +629,14 @@ void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
  * ============================== */
 
 int jobject_size(jnode_t* jnode) {
+  jerror_clear();
   check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   return jht_size(jobj->hashmap);
 }
 
 int jobject_has(jnode_t* jnode, const char* key) {
+  jerror_clear();
   check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   jkv_t* head = jht_head(jobj->hashmap, key);
@@ -603,6 +659,7 @@ int jobject_has(jnode_t* jnode, const char* key) {
 }
 
 jnode_t* jobject_get(jnode_t* jnode, const char* key) {
+  jerror_clear();
   check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   jkv_t* head = jht_head(jobj->hashmap, key);
@@ -630,6 +687,7 @@ jnode_t* jobject_get(jnode_t* jnode, const char* key) {
 }
 
 int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
+  jerror_clear();
   if (!key) {
     jerror_log("Null key.");
     return 0;
@@ -704,6 +762,7 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
 }
 
 void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
+  jerror_clear();
   check_type(jnode, object, );
   jobject_t* jobj = jas_object(jnode);
   for (int i = 0; i < jht_capacity(jobj->hashmap); i++) {
@@ -788,6 +847,7 @@ static void jlexer_advance(jlexer_t* lexer) {
 }
 
 static void jlexer_skip_blank(jlexer_t* lexer) {
+  jerror_clear();
   while (!jlexer_is_end(lexer) &&
          (isblank(jlexer_peek(lexer)) || iscntrl(jlexer_peek(lexer))))
     jlexer_advance(lexer);
@@ -795,6 +855,7 @@ static void jlexer_skip_blank(jlexer_t* lexer) {
 
 static int jlex_keyword(jlexer_t* lexer, tv* tokens, int type,
                         const char* keyword) {
+  jerror_clear();
   int len = strlen(keyword);
   if (jlexer_rest(lexer) < len) {
     jerror_log("Insufficient input for lexing" jlexer_linecol_str,
@@ -814,6 +875,7 @@ static int jlex_keyword(jlexer_t* lexer, tv* tokens, int type,
 }
 
 static int jlex_number(jlexer_t* lexer, tv* tokens) {
+  jerror_clear();
   char* end = 0;
   double val = strtod(jlexer_currptr(lexer), &end);
   int len = end - jlexer_currptr(lexer);
@@ -830,6 +892,7 @@ static int jlex_number(jlexer_t* lexer, tv* tokens) {
 }
 
 static int jlex_string(jlexer_t* lexer, tv* tokens) {
+  jerror_clear();
   if (!jlexer_match(lexer, '\"')) {
     jerror_log("Expect \" but got '%c'" jlexer_linecol_str, jlexer_peek(lexer),
                jlexer_linecol(lexer));
@@ -855,6 +918,7 @@ static int jlex_string(jlexer_t* lexer, tv* tokens) {
 }
 
 static int jlex(jlexer_t* lexer, tv* tokens) {
+  jerror_clear();
   for (jlexer_skip_blank(lexer); !jlexer_is_end(lexer);
        jlexer_skip_blank(lexer)) {
     switch (jlexer_peek(lexer)) {
@@ -938,6 +1002,7 @@ typedef struct jparser {
 static jnode_t* jparse(jparser_t* parser);
 
 static jnode_t* jparse_array(jparser_t* parser) {
+  jerror_clear();
   jnode_t* array = jarray_new();
   if (jparser_match(parser, ']')) {
     jparser_advance(parser);
@@ -985,6 +1050,7 @@ static jnode_t* jparse_array(jparser_t* parser) {
 
 /* Key copy lexemes. Value is allocated. When key is 0, error happens. */
 static jkv_t jparse_keyvalue(jparser_t* parser) {
+  jerror_clear();
   jkv_t kv = {};
 
   if (!jparser_match(parser, JTK_STRING)) {
@@ -1015,6 +1081,7 @@ static jkv_t jparse_keyvalue(jparser_t* parser) {
 }
 
 static jnode_t* jparse_object(jparser_t* parser) {
+  jerror_clear();
   jnode_t* obj = jobject_new();
   if (jparser_match(parser, '}')) {
     jparser_advance(parser);
@@ -1063,6 +1130,7 @@ static jnode_t* jparse_object(jparser_t* parser) {
 }
 
 static jnode_t* jparse(jparser_t* parser) {
+  jerror_clear();
   const jtoken_t* tk = jparser_currptr(parser);
   jparser_advance(parser);
   switch (tk->type) {
@@ -1087,6 +1155,7 @@ static jnode_t* jparse(jparser_t* parser) {
 }
 
 jnode_t* jfrom_string(const char* json_str) {
+  jerror_clear();
   jlexer_t lexer = {.len = strlen(json_str),
                     .curr = 0,
                     .line = 1,
