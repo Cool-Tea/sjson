@@ -20,7 +20,29 @@ const char* jerror() { return err_msg; }
  *          UTILS
  * ======================= */
 
+// #define jabort(fmt, ...)                      \
+//   do {                                        \
+//     fprintf(stderr, fmt "\n", ##__VA_ARGS__); \
+//     *(char*)0;                                \
+//   } while (0)
+// #define jassert(expr, fmt, ...)              \
+//   do {                                       \
+//     if (!(expr)) jabort(fmt, ##__VA_ARGS__); \
+//   } while (0)
+#define check_type(node, type, ret, ...)                      \
+  do {                                                        \
+    if (!jis_##type(node)) {                                  \
+      jerror_log("Expect type '%s' but got type '%s'", #type, \
+                 type_str[jtype(node)]);                      \
+      ##__VA_ARGS__ return ret;                               \
+    }                                                         \
+  } while (0)
 #define grow_capacity(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
+
+static const char* type_str[] = {
+    [JNULL] = "null",     [JBOOLEAN] = "boolean", [JNUMBER] = "number",
+    [JSTRING] = "string", [JARRAY] = "array",     [JOBJECT] = "object",
+};
 
 static void* reallocate(void* ptr, int old, int new) {
   if (!new) {
@@ -253,6 +275,7 @@ static int jnull_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jbool_to_string(jnode_t* jnode, tv* jstr) {
+  check_type(jnode, boolean, 0);
   jbool_t* jbool = jas_bool(jnode);
   if (jbool->value) {
     return jvector_concat(char, jstr, "true", 4);
@@ -262,6 +285,7 @@ static int jbool_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
+  check_type(jnode, number, 0);
   jnumber_t* jnum = jas_number(jnode);
   char buffer[64];
   int len = sprintf(buffer, "%g", jnum->value);
@@ -269,6 +293,7 @@ static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jstring_to_string(jnode_t* jnode, tv* jstr) {
+  check_type(jnode, string, 0);
   jstring_t* jstring = jas_string(jnode);
   if (!jvector_concat(char, jstr, "\"", 1)) return 0;
   if (!jvector_concat(char, jstr, jvector_data(jstring->string),
@@ -278,6 +303,7 @@ static int jstring_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jarray_to_string(jnode_t* jnode, tv* jstr) {
+  check_type(jnode, array, 0);
   jarray_t* jarray = jas_array(jnode);
   if (!jvector_concat(char, jstr, "[", 1)) return 0;
 
@@ -293,6 +319,7 @@ static int jarray_to_string(jnode_t* jnode, tv* jstr) {
 }
 
 static int jobject_to_string(jnode_t* jnode, tv* jstr) {
+  check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   if (!jvector_concat(char, jstr, "{", 1)) return 0;
 
@@ -424,49 +451,58 @@ void jdelete(jnode_t* jnode) {
  * ============================== */
 
 int jstring_len(jnode_t* jnode) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_len(jstr->string);
 }
 
 char jstring_get(jnode_t* jnode, int index) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return *jvector_get(jstr->string, index);
 }
 
 const char* jstring_content(jnode_t* jnode) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_data(jstr->string);
 }
 
 int jstring_add(jnode_t* jnode, char c) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_concat(char, &jstr->string, &c, 1);
 }
 
 int jstring_insert(jnode_t* jnode, int index, char c) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   return jvector_insert(char, &jstr->string, index, &c, 1);
 }
 
 int jstring_concat(jnode_t* jnode, const char* string) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   int len = strlen(string);
   return jvector_concat(char, &jstr->string, string, len);
 }
 
 int jstring_pop(jnode_t* jnode) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_pop(char, &jstr->string, 1);
   return 1;
 }
 
 int jstring_remove(jnode_t* jnode, int index) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_remove(char, &jstr->string, index, 1);
   return 1;
 }
 
 int jstring_truncate(jnode_t* jnode, int len) {
+  check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   jvector_pop(char, &jstr->string, jvector_len(jstr->string) - len);
   return 1;
@@ -477,26 +513,31 @@ int jstring_truncate(jnode_t* jnode, int len) {
  * ============================== */
 
 int jarray_size(jnode_t* jnode) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_len(jarr->array);
 }
 
 jnode_t* jarray_get(jnode_t* jnode, int index) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return *jvector_get(jarr->array, index);
 }
 
 int jarray_add(jnode_t* jnode, jnode_t* value) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_concat(jnode_t*, &jarr->array, &value, 1);
 }
 
 int jarray_insert(jnode_t* jnode, int index, jnode_t* value) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   return jvector_insert(jnode_t*, &jarr->array, index, &value, 1);
 }
 
 int jarray_pop(jnode_t* jnode) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   jnode_t* item = *jvector_pop(jnode_t*, &jarr->array, 1);
   if (item) {
@@ -509,6 +550,7 @@ int jarray_pop(jnode_t* jnode) {
 }
 
 int jarray_remove(jnode_t* jnode, int index) {
+  check_type(jnode, array, 0);
   jarray_t* jarr = jas_array(jnode);
   jnode_t** item = jvector_remove(jnode_t*, &jarr->array, index, 1);
   if (item) {
@@ -520,6 +562,7 @@ int jarray_remove(jnode_t* jnode, int index) {
 }
 
 void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
+  check_type(jnode, array, );
   jarray_t* jarr = jas_array(jnode);
   jvector_foreach(i, jarr->array) {
     jnode_t* item = *jvector_get(jarr->array, i);
@@ -532,11 +575,13 @@ void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
  * ============================== */
 
 int jobject_size(jnode_t* jnode) {
+  check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   return jht_size(jobj->hashmap);
 }
 
 int jobject_has(jnode_t* jnode, const char* key) {
+  check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   jkv_t* head = jht_head(jobj->hashmap, key);
 
@@ -558,6 +603,7 @@ int jobject_has(jnode_t* jnode, const char* key) {
 }
 
 jnode_t* jobject_get(jnode_t* jnode, const char* key) {
+  check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   jkv_t* head = jht_head(jobj->hashmap, key);
 
@@ -589,6 +635,7 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
     return 0;
   }
 
+  check_type(jnode, object, 0);
   jobject_t* jobj = jas_object(jnode);
   int hash = fnv1a(key);
   jkv_t* head = jht_head(jobj->hashmap, key);
@@ -657,6 +704,7 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
 }
 
 void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
+  check_type(jnode, object, );
   jobject_t* jobj = jas_object(jnode);
   for (int i = 0; i < jht_capacity(jobj->hashmap); i++) {
     jkv_t* head = jht_get(jobj->hashmap, i);

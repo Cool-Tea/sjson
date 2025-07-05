@@ -6,6 +6,7 @@
 
 void fail_from_string() {
   println("\n=== TESTING FROM_STRING ERROR OPERATIONS ===");
+
   const char* early_eof = "{ \"name\": \"John\" ";
   jnode_t* n1 = jfrom_string(early_eof);
   println("TESTING %s:", early_eof);
@@ -48,6 +49,11 @@ void fail_array_operation() {
   println("Getting index 10 from 2-element array: [%p] %s", out_of_bounds,
           jerror());
 
+  // Test Non-array access
+  jnode_t* number = jnumber_new(3.14);
+  int result2 = jarray_size(number);
+  println("Accessing non-array: result=%d, error=%s", result2, jerror());
+
   // Test removing from out of bounds index
   int result3 = jarray_remove(array, -1);
   println("Removing index -1: result=%d, error=%s", result3, jerror());
@@ -56,7 +62,6 @@ void fail_array_operation() {
   println("Removing index 100: result=%d, error=%s", result4, jerror());
 
   // Test inserting at invalid index
-  jnode_t* number = jnumber_new(123);
   int result5 = jarray_insert(array, -5, number);
   println("Inserting at index -5: result=%d, error=%s", result5, jerror());
 
@@ -67,6 +72,11 @@ void fail_array_operation() {
 
 void fail_string_operation() {
   println("\n=== TESTING STRING ERROR OPERATIONS ===");
+
+  // Test Non-string access
+  jnode_t* number = jnumber_new(3.14);
+  int result2 = jstring_len(number);
+  println("Accessing non-string: result=%d, error=%s", result2, jerror());
 
   // Test out of bounds operations
   jnode_t* string = jstring_new(0, "hello");
@@ -85,11 +95,17 @@ void fail_string_operation() {
   println("Truncating to length -5: result=%d, error=%s", result5, jerror());
 
   // Clean up
+  jdelete(number);
   jdelete(string);
 }
 
 void fail_object_operation() {
   println("\n=== TESTING OBJECT ERROR OPERATIONS ===");
+
+  // Test Non-object access
+  jnode_t* number = jnumber_new(3.14);
+  int result1 = jobject_has(number, "invalid");
+  println("Accessing non-object: result=%d, error=%s", result1, jerror());
 
   // Test with NULL key
   jnode_t* object = jobject_new();
@@ -106,6 +122,7 @@ void fail_object_operation() {
   println("Checking for missing key: result=%d, error=%s", has_key, jerror());
 
   // Clean up
+  jdelete(number);
   jdelete(string);
   jdelete(object);
 }
