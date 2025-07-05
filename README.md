@@ -77,6 +77,10 @@ For more example, plz check out [demo](./demo/) directory!
 - `jnode_t* jarray_new()` - Create array node
 - `jnode_t* jobject_new()` - Create object node
 
+#### Error Handling
+
+- `const char* jerror()` - Returns error message string, or `NULL` when no error occurred
+
 #### Memory Management
 - `void jdelete(jnode_t* jnode)` - Free JSON node and all children
 
@@ -119,6 +123,7 @@ void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*));  // Iter
 ### Type Checking Macros
 
 ```c
+jtype(node)         // Get the type of the node
 jis_null(node)      // Check if node is null
 jis_boolean(node)   // Check if node is boolean
 jis_number(node)    // Check if node is number
@@ -209,15 +214,18 @@ jstring_pop(str);             // Remove last char: "Hell"
 
 ## Error Handling
 
-Most functions return `NULL` or `0` on error. Always check return values:
+Most functions return `NULL` or `0` on error. When an error occurs, call `jerror()` to get the error message.
 
 ```c
 jnode_t* parsed = jfrom_string(json_string);
 if (parsed == NULL) {
-    fprintf(stderr, "Failed to parse JSON\n");
+    const char* error_msg = jerror();
+    fprintf(stderr, "JSON parsing failed: %s\n", error_msg);
     return -1;
 }
 ```
+
+Return values of Some functions are a bit ambiguous. Like `jarray_size()`, `0` is returned when the array is empty or an error occurs. So `jerror()` is designed to tell the user whether there is an error by returning null when everything goes well.
 
 ## Memory Management
 
