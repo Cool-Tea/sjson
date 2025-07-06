@@ -1,8 +1,9 @@
 #ifndef SJSON_H
+#define SJSON_H
 
 /* ======== META DATA ======== */
 
-#define SJSON_VERSION "1.1.0"
+#define SJSON_VERSION "1.1.1"
 
 /* ======== MACROS ======== */
 
