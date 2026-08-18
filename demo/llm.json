@@ -1,0 +1,32 @@
+{
+  "id": "e9eddb67-a083-49d5-aa35-2e26894a2eb7",
+  "object": "chat.completion",
+  "created": 1787043982,
+  "model": "deepseek-v4-flash",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hi there! I'm DeepSeek, an AI assistant created by DeepSeek (深度求索) company. I'm here to help you with a wide range of questions and tasks — whether you need information, want to brainstorm ideas, get help with writing, coding, analysis, or just have a conversation.\n\nI'm powered by a large language model, and while I don't have personal experiences or emotions, I can understand and generate human-like text based on what I've learned. I support reading links, uploading files (images, PDFs, Word docs, Excel sheets, etc.), and I have a large context window — up to 1 million tokens — so I can handle lengthy documents too.\n\nIf you're using the DeepSeek app or web platform, you can even enable voice input. And yes, I'm free to use!\n\nWhat can I help you with today? 😊",
+        "reasoning_content": "The user asks \"Who are you?\" This is a straightforward identity question. I should respond with a clear, friendly introduction of myself as DeepSeek AI. Mention my creator, my capabilities, and my context window to be helpful. Keep it concise and warm, ending with an offer to assist further."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 87,
+    "completion_tokens": 244,
+    "total_tokens": 331,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 61
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 87
+  },
+  "system_fingerprint": "a26a7955944dc5c60445bff77fac9c8e"
+}

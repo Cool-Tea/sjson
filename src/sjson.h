@@ -3,7 +3,7 @@
 
 /* ======== META DATA ======== */
 
-#define SJSON_VERSION "1.1.1"
+#define SJSON_VERSION "1.1.2"
 
 /* ======== MACROS ======== */
 

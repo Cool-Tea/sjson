@@ -9,31 +9,31 @@ void fail_from_string() {
 
   const char* early_eof = "{ \"name\": \"John\" ";
   jnode_t* n1 = jfrom_string(early_eof);
-  println("TESTING %s:", early_eof);
-  println("[%p] %s", n1, jerror());
+  println("TESTING '%s':", early_eof);
+  println("[%p] '%s'", n1, jerror());
 
   // Test invalid JSON with missing quotes
   const char* missing_quotes = "{ name: John }";
   jnode_t* n2 = jfrom_string(missing_quotes);
-  println("\nTESTING %s:", missing_quotes);
+  println("\nTESTING '%s':", missing_quotes);
   println("[%p] %s", n2, jerror());
 
   // Test invalid JSON with trailing comma
   const char* trailing_comma = "{ \"name\": \"John\", }";
   jnode_t* n3 = jfrom_string(trailing_comma);
-  println("\nTESTING %s:", trailing_comma);
+  println("\nTESTING '%s':", trailing_comma);
   println("[%p] %s", n3, jerror());
 
   // Test invalid JSON with unescaped string
   const char* unescaped = "{ \"name\": \"John\nDoe\" }";
   jnode_t* n4 = jfrom_string(unescaped);
-  println("\nTESTING %s:", unescaped);
+  println("\nTESTING '%s':", unescaped);
   println("[%p] %s", n4, jerror());
 
   // Test completely malformed JSON
   const char* malformed = "{{{";
   jnode_t* n5 = jfrom_string(malformed);
-  println("\nTESTING %s:", malformed);
+  println("\nTESTING '%s':", malformed);
   println("[%p] %s", n5, jerror());
 }
 
