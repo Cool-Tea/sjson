@@ -3,7 +3,7 @@
 
 /* ======== META DATA ======== */
 
-#define SJSON_VERSION "1.1.2"
+#define SJSON_VERSION "1.2.0"
 #define SJSON_AUTHOR "Cool-Tea"
 #define SJSON_LICENSE "MIT"
 #define SJSON_LINK "https://github.com/Cool-Tea/sjson"
@@ -101,6 +101,8 @@ jnode_t* jbool_new(int value);  // return a singleton pointer
 jnode_t* jnumber_new(double value);
 jnode_t* jstring_new(
     int len, const char* string);  // when len is 0, automatically call strlen
+jnode_t* jstring_own(
+    char* string);  // take ownership of the string, and free it when deleted
 jnode_t* jarray_new();
 jnode_t* jobject_new();
 void jdelete(jnode_t* jnode);

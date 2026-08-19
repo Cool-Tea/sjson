@@ -449,6 +449,18 @@ jnode_t* jstring_new(int len, const char* string) {
   jleave(jcast(jstr, jnode_t*));
 }
 
+jnode_t* jstring_own(char* string) {
+  jenter();
+  jstring_t* jstr = reallocate(0, 0, sizeof(jstring_t));
+  if (!jstr) jleave(0);
+  jstr->type = JSTRING;
+  jvector_init(char, &jstr->string);
+  jvector_len(jstr->string) = strlen(string);
+  jvector_capacity(jstr->string) = jvector_len(jstr->string) + 1;
+  jvector_data(jstr->string) = string;
+  jleave(jcast(jstr, jnode_t*));
+}
+
 jnode_t* jarray_new() {
   jenter();
   jarray_t* jarray = reallocate(0, 0, sizeof(jarray_t));
