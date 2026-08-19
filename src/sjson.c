@@ -446,6 +446,13 @@ jnode_t* jstring_new(int len, const char* string) {
     reallocate(jstr, sizeof(jstring_t), 0);
     jleave(0);
   }
+  if (!jvector_concat(char, &jstr->string, "\0", 1)) {
+    reallocate(jstr, sizeof(jstring_t), 0);
+    jleave(0);
+  }
+  // jvector_concat would increase the length by 1.
+  // We need to pop the last character to make the length correct.
+  jvector_pop(char, &jstr->string, 1);
   jleave(jcast(jstr, jnode_t*));
 }
 
