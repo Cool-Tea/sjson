@@ -1048,6 +1048,7 @@ static int jnormalize_string(char* dst, const char* src, int len) {
         case 't': *dst++ = '\t'; break;
         default: jerror_log("Unknown escape character '%c'", *next); return 0;
       }
+      next++;
       dst_len++;
     }
   }

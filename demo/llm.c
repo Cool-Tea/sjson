@@ -32,6 +32,38 @@ int main() {
   println("[%s] %s", json_path, str1);
   free(str1);
 
+  jnode_t* choices = jobject_get(json, "choices");
+  if (!choices) {
+    println("Failed to get 'choices' from json");
+    jdelete(json);
+    return EXIT_FAILURE;
+  }
+
+  jnode_t* choice = jarray_get(choices, 0);
+  if (!choice) {
+    println("Failed to get 'message' from choices");
+    jdelete(json);
+    return EXIT_FAILURE;
+  }
+
+  jnode_t* message = jobject_get(choice, "message");
+  if (!message) {
+    println("Failed to get 'message' from choice");
+    jdelete(json);
+    return EXIT_FAILURE;
+  }
+
+  jnode_t* content = jobject_get(message, "content");
+  if (!content) {
+    println("Failed to get 'content' from message");
+    jdelete(json);
+    return EXIT_FAILURE;
+  }
+
+  println("==== JSON CONTENT ====");
+  const char* str2 = jstring_content(content);
+  println("[%s] %s", json_path, str2);
+
   jdelete(json);
   return 0;
 }
