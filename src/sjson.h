@@ -4,6 +4,9 @@
 /* ======== META DATA ======== */
 
 #define SJSON_VERSION "1.1.2"
+#define SJSON_AUTHOR "Cool-Tea"
+#define SJSON_LICENSE "MIT"
+#define SJSON_LINK "https://github.com/Cool-Tea/sjson"
 
 /* ======== MACROS ======== */
 
