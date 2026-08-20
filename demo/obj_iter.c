@@ -4,7 +4,8 @@
 
 #define println(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
 
-void print_kv(const char* key, jnode_t* value) {
+void print_kv(const char* key, jnode_t* value, void* userp) {
+  (void)userp;
   static int count = 0;
   char* jstr = jto_string(value);
   println("#%4d [%s] = %s", ++count, key, jstr);
@@ -41,7 +42,7 @@ int main() {
         jnode_t* item = jarray_get(servlet, 0);
         {
           jnode_t* init_param = jobject_get(item, "init-param");
-          jobject_foreach(init_param, print_kv);
+          jobject_foreach(init_param, print_kv, 0);
         }
       }
     }

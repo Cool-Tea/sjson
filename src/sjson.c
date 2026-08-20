@@ -489,6 +489,76 @@ jnode_t* jobject_new() {
   jleave(jcast(jobj, jnode_t*));
 }
 
+struct jcopy_context {
+  int success;
+  jnode_t* jnode;
+};
+
+static void jcopy_array_item(jnode_t* item, void* userp) {
+  struct jcopy_context* ctx = jcast(userp, struct jcopy_context*);
+  jnode_t* array = ctx->jnode;
+  jnode_t* new_item = jcopy(item);
+  if (!new_item) {
+    ctx->success = 0;
+    return;
+  }
+  if (!jarray_add(array, new_item)) {
+    jdelete(new_item);
+  }
+  ctx->success = 1;
+}
+
+static void jcopy_object_item(const char* key, jnode_t* value, void* userp) {
+  struct jcopy_context* ctx = jcast(userp, struct jcopy_context*);
+  jnode_t* object = ctx->jnode;
+  jnode_t* new_value = jcopy(value);
+  if (!new_value) {
+    ctx->success = 0;
+    return;
+  }
+  if (!jobject_put(object, key, new_value)) {
+    jdelete(new_value);
+    ctx->success = 0;
+    return;
+  }
+  ctx->success = 1;
+}
+
+jnode_t* jcopy(jnode_t* jnode) {
+  jenter();
+  if (!jnode) jleave(0);
+  switch (jnode->type) {
+    case JNULL: jleave(jnull_new());
+    case JBOOLEAN: jleave(jbool_new(jas_bool(jnode)->value));
+    case JNUMBER: jleave(jnumber_new(jas_number(jnode)->value));
+    case JSTRING:
+      jleave(jstring_new(0, jvector_data(jas_string(jnode)->string)));
+    case JARRAY: {
+      jnode_t* new_array = jarray_new();
+      if (!new_array) jleave(0);
+      struct jcopy_context ctx = {.success = 1, .jnode = new_array};
+      jarray_foreach(jnode, jcopy_array_item, &ctx);
+      if (!ctx.success) {
+        jdelete(new_array);
+        jleave(0);
+      }
+      jleave(new_array);
+    }
+    case JOBJECT: {
+      jnode_t* new_obj = jobject_new();
+      if (!new_obj) jleave(0);
+      struct jcopy_context ctx = {.success = 1, .jnode = new_obj};
+      jobject_foreach(jnode, jcopy_object_item, &ctx);
+      if (!ctx.success) {
+        jdelete(new_obj);
+        jleave(0);
+      }
+      jleave(new_obj);
+    }
+  }
+  jleave(0);
+}
+
 void jdelete(jnode_t* jnode) {
   jenter();
   if (!jnode) jleave();
@@ -652,13 +722,13 @@ int jarray_remove(jnode_t* jnode, int index) {
   }
 }
 
-void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*)) {
+void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*, void*), void* userp) {
   jenter();
   check_type(jnode, array, );
   jarray_t* jarr = jas_array(jnode);
   jvector_foreach(i, jarr->array) {
     jnode_t* item = *jvector_get(jarr->array, i);
-    f(item);
+    f(item, userp);
   }
   jleave();
 }
@@ -799,14 +869,15 @@ int jobject_put(jnode_t* jnode, const char* key, jnode_t* value) {
   jleave(changed);
 }
 
-void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*)) {
+void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*, void*),
+                     void* userp) {
   jenter();
   check_type(jnode, object, );
   jobject_t* jobj = jas_object(jnode);
   for (int i = 0; i < jht_capacity(jobj->hashmap); i++) {
     jkv_t* head = jht_get(jobj->hashmap, i);
     for (jkv_t* it = head->next; it; it = it->next) {
-      f(it->key, it->value);
+      f(it->key, it->value, userp);
     }
   }
   jleave();

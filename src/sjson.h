@@ -105,6 +105,7 @@ jnode_t* jstring_own(
     char* string);  // take ownership of the string, and free it when deleted
 jnode_t* jarray_new();
 jnode_t* jobject_new();
+jnode_t* jcopy(jnode_t* jnode);  // deep copy
 void jdelete(jnode_t* jnode);
 
 int jstring_len(jnode_t* jnode);
@@ -124,7 +125,7 @@ int jarray_insert(jnode_t* jnode, int index,
                   jnode_t* value);  // move into array
 int jarray_pop(jnode_t* jnode);
 int jarray_remove(jnode_t* jnode, int index);
-void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*));
+void jarray_foreach(jnode_t* jnode, void (*f)(jnode_t*, void*), void* userp);
 
 int jobject_size(jnode_t* jnode);
 int jobject_has(jnode_t* jnode, const char* key);
@@ -132,7 +133,8 @@ jnode_t* jobject_get(jnode_t* jnode, const char* key);
 int jobject_put(jnode_t* jnode, const char* key,
                 jnode_t* value);  // move when non-exists. overwrite when
                                   // exists. erase when value is null.
-void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*));
+void jobject_foreach(jnode_t* jnode, void (*f)(const char*, jnode_t*, void*),
+                     void* userp);
 
 const char* jerror();  // return 0 when no error.
 
