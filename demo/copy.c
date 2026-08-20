@@ -5,7 +5,7 @@
 #define println(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
 
 int main() {
-  const char* json_path = "demo/parse.json";
+  const char* json_path = "demo/llm.json";
 
   FILE* jp = fopen(json_path, "r");
   if (!jp) {
@@ -40,6 +40,15 @@ int main() {
   println("==== JSON COPIED ====");
   println("[%s] %s", json_path, str1);
   free(str1);
+
+  jnode_t* choices = jcopy(jobject_get(copy, "choices"));
   jdelete(copy);
+
+  char* str2 = jto_string(choices);
+  println("==== JSON CHOICES ====");
+  println("[%s] %s", json_path, str2);
+  free(str2);
+
+  jdelete(choices);
   return 0;
 }

@@ -9,7 +9,7 @@ $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%: $(DEMO_DIR)/%.c $(SRC_DIR)/sjson.c $(SRC_DIR)/sjson.h
-	@$(CC) -I$(SRC_DIR) $< $(SRC_DIR)/sjson.c -o $@ -ggdb -std=c17 -fsanitize=leak -Wall -Wextra -Werror
+	@$(CC) -I$(SRC_DIR) $< $(SRC_DIR)/sjson.c -o $@ -ggdb -std=c17 -fsanitize=address -Wall -Wextra -Werror
 
 demo: $(BUILD_DIR) $(BIN)
 

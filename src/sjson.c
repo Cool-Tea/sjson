@@ -636,7 +636,12 @@ int jstring_concat(jnode_t* jnode, const char* string) {
   check_type(jnode, string, 0);
   jstring_t* jstr = jas_string(jnode);
   int len = strlen(string);
-  jleave(jvector_concat(char, &jstr->string, string, len));
+  // include the terminating '\0'
+  if (!jvector_concat(char, &jstr->string, string, len + 1)) jleave(0);
+  // because jvector_concat increase the length by 1 ('\0')
+  // here we decrease the length by 1 to make it correct.
+  jvector_pop(char, &jstr->string, 1);
+  jleave(1);
 }
 
 int jstring_pop(jnode_t* jnode) {

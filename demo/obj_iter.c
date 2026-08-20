@@ -26,6 +26,8 @@ int main() {
   fseek(jp, 0, SEEK_SET);
   char* buffer = malloc(len + 1);
   fread(buffer, sizeof(char), len, jp);
+  buffer[len] = '\0';
+  fclose(jp);
 
   jnode_t* json = jfrom_string(buffer);
   free(buffer);
