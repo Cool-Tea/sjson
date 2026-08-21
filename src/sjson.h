@@ -114,6 +114,7 @@ const char* jstring_content(jnode_t* jnode);
 int jstring_add(jnode_t* jnode, char c);
 int jstring_insert(jnode_t* jnode, int index, char c);
 int jstring_concat(jnode_t* jnode, const char* string);
+int jstring_nconcat(jnode_t* jnode, const char* string, int len);
 int jstring_pop(jnode_t* jnode);
 int jstring_remove(jnode_t* jnode, int index);
 int jstring_truncate(jnode_t* jnode, int len);  // retain string of length `len`

@@ -644,6 +644,19 @@ int jstring_concat(jnode_t* jnode, const char* string) {
   jleave(1);
 }
 
+int jstring_nconcat(jnode_t* jnode, const char* string, int len) {
+  jenter();
+  check_type(jnode, string, 0);
+  jstring_t* jstr = jas_string(jnode);
+  // reserve the space for '\0'
+  if (!jvector_concat(char, &jstr->string, string, len + 1)) jleave(0);
+  *jvector_get(jstr->string, jvector_len(jstr->string) - 1) = '\0';
+  // because jvector_concat increase the length by 1 ('\0')
+  // here we decrease the length by 1 to make it correct.
+  jvector_pop(char, &jstr->string, 1);
+  jleave(1);
+}
+
 int jstring_pop(jnode_t* jnode) {
   jenter();
   check_type(jnode, string, 0);
@@ -1117,7 +1130,7 @@ static int jlex(jlexer_t* lexer, tv* tokens) {
 static int jnormalize_string(char* dst, const char* src, int len) {
   const char* escape = strchr(src, '\\');
   if (!escape || escape >= src + len) {
-    strncpy(dst, src, len);
+    memcpy(dst, src, len);
     dst[len] = '\0';
     return len;
   }
@@ -1127,7 +1140,7 @@ static int jnormalize_string(char* dst, const char* src, int len) {
     next = strchr(it, '\\');
     if (!next || next >= end) next = end;
     int copy_len = next - it;
-    strncpy(dst, it, copy_len);
+    memcpy(dst, it, copy_len);
     dst += copy_len;
     dst_len += copy_len;
     if (next < end) {
