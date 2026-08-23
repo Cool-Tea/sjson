@@ -39,24 +39,29 @@ void test_boolean() {
 void test_number() {
   jnode_t* jint = jnumber_new(6);
   jnode_t* jfloat = jnumber_new(3.14);
+  jnode_t* large_int = jnumber_new(1048576);
 
   println("==== JSON NUMBER ====");
   char* str1 = jto_string(jint);
   char* str2 = jto_string(jfloat);
+  char* str3 = jto_string(large_int);
   println("jint  : %5s [%p]", str1, jint);
   println("jfloat: %5s [%p]", str2, jfloat);
+  println("large_int: %5s [%p]", str3, large_int);
 
   free(str1);
   free(str2);
+  free(str3);
   jdelete(jint);
   jdelete(jfloat);
+  jdelete(large_int);
 }
 
 void test_string() {
   const char* str = "Hello JSON!";
   jnode_t* jstr = jstring_new(0, str);
 
-  println("==== JSON NUMBER ====");
+  println("==== JSON STRING ====");
   char* str1 = jto_string(jstr);
   println("jstr: %s [%p]", str1, jstr);
 

@@ -303,7 +303,7 @@ static int jnumber_to_string(jnode_t* jnode, tv* jstr) {
   check_type(jnode, number, 0);
   jnumber_t* jnum = jas_number(jnode);
   char buffer[64];
-  int len = sprintf(buffer, "%g", jnum->value);
+  int len = sprintf(buffer, "%.15g", jnum->value);
   jleave(jvector_concat(char, jstr, buffer, len));
 }
 
