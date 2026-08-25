@@ -1,0 +1,18 @@
+{
+  "id": "11cb0186-ffb7-4676-80e6-13de6a3c9253",
+  "object": "chat.completion.chunk",
+  "created": 1787657134,
+  "model": "deepseek-v4-flash",
+  "system_fingerprint": "a26a7955944dc5c60445bff77fac9c8e",
+  "choices": [
+    {
+      "index": 0,
+      "delta": {
+        "content": null,
+        "reasoning_content": " a"
+      },
+      "logprobs": null,
+      "finish_reason": null
+    }
+  ]
+}

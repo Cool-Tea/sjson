@@ -1174,7 +1174,7 @@ static jnode_t* jparse(jparser_t* parser);
 
 static jnode_t* jstring_from_token(const jtoken_t* tk) {
   int len = tk->len - 2;
-  if (len <= 2) return jstring_new(0, "");
+  if (!len) return jstring_new(0, "");
   const char* src = tk->as.string;
   jnode_t* string = jstring_new(len, src);
   const char* escape = strchr(src, '\\');
