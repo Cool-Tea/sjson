@@ -16,7 +16,7 @@ int main() {
   printf("JSON: %s\n", json_str);
 
   // Parse from string
-  jnode_t* parsed = jfrom_string(json_str);
+  jnode_t* parsed = jfrom_string(json_str, 0);
 
   // Access values
   if (jis_object(parsed)) {

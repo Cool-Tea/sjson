@@ -21,7 +21,7 @@ int main() {
   buffer[len] = '\0';
   fclose(jp);
 
-  jnode_t* json = jfrom_string(buffer);
+  jnode_t* json = jfrom_string(buffer, 0);
   free(buffer);
   if (!json) {
     println("Failed to load json: %s", jerror());

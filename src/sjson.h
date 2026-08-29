@@ -26,6 +26,7 @@
 #define jis_string(node) (jtype(node) == JSTRING)
 #define jis_array(node) (jtype(node) == JARRAY)
 #define jis_object(node) (jtype(node) == JOBJECT)
+#define jis_empty(node) (!node || jis_null(node))
 
 #define jvector(type, name) \
   struct {                  \
@@ -94,7 +95,8 @@ typedef struct jobject {
 /* ======== FUNCTIONS ======== */
 
 char* jto_string(jnode_t* jnode);  // returned string should be freed manually
-jnode_t* jfrom_string(const char* json_str);
+jnode_t* jfrom_string(const char* json_str,
+                      int len);  // when len is 0, automatically call strlen
 
 jnode_t* jnull_new();           // return a singleton pointer
 jnode_t* jbool_new(int value);  // return a singleton pointer

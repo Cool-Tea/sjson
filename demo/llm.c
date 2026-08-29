@@ -21,7 +21,7 @@ int main() {
   fclose(jp);
   buffer[len] = '\0';
 
-  jnode_t* json = jfrom_string(buffer);
+  jnode_t* json = jfrom_string(buffer, 0);
   free(buffer);
 
   if (!json) {

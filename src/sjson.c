@@ -399,6 +399,8 @@ char* jto_string(jnode_t* jnode) {
   jvector_init(char, &jstr);
   if (jto_strings[jnode->type](jnode, jas_tv(&jstr))) {
     if (!jvector_concat(char, &jstr, "\0", 1)) jleave(0);
+    // jvector_concat would increase the length by 1 ('\0')
+    jvector_pop(char, &jstr, 1);
     jleave(jvector_data(jstr));
   } else {
     jleave(0);
@@ -1339,13 +1341,16 @@ static jnode_t* jparse(jparser_t* parser) {
   }
 }
 
-jnode_t* jfrom_string(const char* json_str) {
+jnode_t* jfrom_string(const char* json_str, int len) {
+  if (len == 0) len = strlen(json_str);
   jenter();
-  jlexer_t lexer = {.len = strlen(json_str),
-                    .curr = 0,
-                    .line = 1,
-                    .col = 1,
-                    .data = json_str};
+  jlexer_t lexer = {
+      .len = len,
+      .curr = 0,
+      .line = 1,
+      .col = 1,
+      .data = json_str,
+  };
 
   // lexing
   jvector(jtoken_t, tokens);
