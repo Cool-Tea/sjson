@@ -20,13 +20,13 @@
 #define jas_object(node) jcast((node), jobject_t*)
 
 #define jtype(node) ((node)->type)
-#define jis_null(node) (jtype(node) == JNULL)
-#define jis_boolean(node) (jtype(node) == JBOOLEAN)
-#define jis_number(node) (jtype(node) == JNUMBER)
-#define jis_string(node) (jtype(node) == JSTRING)
-#define jis_array(node) (jtype(node) == JARRAY)
-#define jis_object(node) (jtype(node) == JOBJECT)
-#define jis_empty(node) (!node || jis_null(node))
+#define jis_null(node) (!node || jtype(node) == JNULL)
+#define jis_boolean(node) (node && jtype(node) == JBOOLEAN)
+#define jis_number(node) (node && jtype(node) == JNUMBER)
+#define jis_string(node) (node && jtype(node) == JSTRING)
+#define jis_array(node) (node && jtype(node) == JARRAY)
+#define jis_object(node) (node && jtype(node) == JOBJECT)
+#define jis_empty(node) jis_null(node)
 
 #define jvector(type, name) \
   struct {                  \
