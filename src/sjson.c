@@ -354,12 +354,14 @@ static int jarray_to_string(jnode_t* jnode, tv* jstr) {
   jarray_t* jarray = jas_array(jnode);
   if (!jvector_concat(char, jstr, "[", 1)) jleave(0);
 
-  jnode_t* item = *jvector_get(jarray->array, 0);
-  if (!jto_strings[item->type](item, jas_tv(jstr))) jleave(0);
-  for (int i = 1; i < jvector_len(jarray->array); i++) {
-    jvector_concat(char, jstr, ", ", 2);
-    jnode_t* item = *jvector_get(jarray->array, i);
+  if (jvector_len(jarray->array)) {
+    jnode_t* item = *jvector_get(jarray->array, 0);
     if (!jto_strings[item->type](item, jas_tv(jstr))) jleave(0);
+    for (int i = 1; i < jvector_len(jarray->array); i++) {
+      jvector_concat(char, jstr, ", ", 2);
+      jnode_t* item = *jvector_get(jarray->array, i);
+      if (!jto_strings[item->type](item, jas_tv(jstr))) jleave(0);
+    }
   }
 
   jleave(jvector_concat(char, jstr, "]", 1));
